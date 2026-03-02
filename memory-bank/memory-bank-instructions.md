@@ -42,7 +42,7 @@ flowchart TD
     AC --> CR[copilot-rules.md]
 ```
 
-### Core Files (Required)
+### Core Files (Required) // Part of the Discovery 
 
 1. **projectbrief.md**
    Foundation document for all others. Defines core requirements, goals, and project scope.
