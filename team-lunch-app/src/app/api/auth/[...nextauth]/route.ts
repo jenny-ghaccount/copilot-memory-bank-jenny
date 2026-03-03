@@ -20,8 +20,17 @@ export const authOptions: AuthOptions = {
       sendVerificationRequest: async ({ identifier: email, url, provider }) => {
         const { host } = new URL(url)
         
-        // In production, you'd use a proper email service
-        // For now, we'll use the default nodemailer setup
+        // For development: Log the magic link to console instead of sending email
+        console.log('')
+        console.log('🔐 MAGIC SIGN-IN LINK:')
+        console.log('📧 Email:', email)
+        console.log('🔗 Link:', url)
+        console.log('') 
+        console.log('👆 Copy the link above and paste it into your browser to sign in!')
+        console.log('')
+        
+        // In production, uncomment this section to send real emails:
+        /*
         const nodemailer = await import('nodemailer')
         const transport = nodemailer.createTransport(provider.server)
         
@@ -50,6 +59,7 @@ export const authOptions: AuthOptions = {
         if (failed.length) {
           throw new Error(`Email(s) (${failed.join(', ')}) could not be sent`)
         }
+        */
       },
     }),
   ],
