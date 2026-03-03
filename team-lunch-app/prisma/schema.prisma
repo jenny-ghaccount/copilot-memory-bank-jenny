@@ -1,0 +1,171 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  extensions   = [postgis]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  dietaryTags  String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  teamMembers  TeamMember[]
+  pollVotes    PollVote[]
+  suggestions  PollSuggestion[]
+  reviews      Review[]
+
+  @@map("users")
+}
+
+model Team {
+  id           String                        @id @default(cuid())
+  name         String
+  meetingPoint Unsupported("geography")?     // PostGIS geography type
+  settings     Json?                         
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+
+  // Relations
+  members         TeamMember[]
+  polls           Poll[]
+  teamRestaurants TeamRestaurant[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId    String
+  userId    String
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  // Relations
+  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Restaurant {
+  id          String                        @id @default(cuid())
+  provider    String                        // 'overpass', 'manual', etc.
+  providerId  String?                       // External ID from provider
+  name        String
+  location    Unsupported("geography")?     // PostGIS geography type
+  cuisineTags String[]
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  // Relations
+  pollSuggestions PollSuggestion[]
+  teamRestaurants TeamRestaurant[]
+  pollsWon        Poll[]           @relation("PollWinner")
+  reviews         Review[]
+
+  @@unique([provider, providerId])
+  @@map("restaurants")
+}
+
+model Poll {
+  id              String      @id @default(cuid())
+  teamId          String
+  status          PollStatus  @default(ACTIVE)
+  closeTime       DateTime?
+  constraintsJson Json?
+  winnerRestaurantId String?
+  randomSeed      String?     // For consistent tie-breaking
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  team            Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  suggestions     PollSuggestion[]
+  votes           PollVote[]
+  winner          Restaurant?         @relation("PollWinner", fields: [winnerRestaurantId], references: [id])
+  reviews         Review[]
+
+  @@map("polls")
+}
+
+model PollSuggestion {
+  pollId       String
+  restaurantId String
+  suggestedBy  String
+  suggestedAt  DateTime @default(now())
+
+  // Relations
+  poll         Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [suggestedBy], references: [id], onDelete: Cascade)
+
+  @@id([pollId, restaurantId])
+  @@map("poll_suggestions")
+}
+
+model PollVote {
+  pollId       String
+  userId       String
+  restaurantId String
+  votedAt      DateTime @default(now())
+
+  // Relations
+  poll         Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, userId, restaurantId])
+  @@map("poll_votes")
+}
+
+model TeamRestaurant {
+  teamId        String
+  restaurantId  String
+  lastVisitedAt DateTime?
+  timesVisited  Int       @default(0)
+
+  // Relations
+  team          Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, restaurantId])
+  @@map("team_restaurants")
+}
+
+model Review {
+  pollId       String
+  restaurantId String
+  userId       String
+  rating       Int       // 1-5 stars
+  comment      String?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  poll         Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, restaurantId, userId])
+  @@map("reviews")
+}
+
+// Enums
+enum MemberRole {
+  ORGANIZER
+  MEMBER
+}
+
+enum PollStatus {
+  ACTIVE
+  CLOSED
+}
